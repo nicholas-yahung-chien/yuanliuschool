@@ -56,3 +56,19 @@ The config enables:
 - `cleanUrls` (keeps original URL style)
 - `trailingSlash: false`
 - automatic `rewrites` for pages whose original URL paths are too long for local Windows filesystem paths
+
+## Vercel Project Setup (Recommended)
+
+When creating the Vercel project manually, use:
+
+- Framework Preset: `Other`
+- Root Directory: `site`
+- Build Command: *(leave empty)*
+- Output Directory: *(leave empty)*
+- Install Command: *(leave empty)*
+
+Then add these GitHub repository secrets so the included workflow can deploy automatically:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
