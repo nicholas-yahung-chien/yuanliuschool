@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { chromium } from 'playwright';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
@@ -27,7 +28,10 @@ function parseCsvRoutes(csvText) {
 
 function slug(route) {
   if (route === '/') return 'index';
-  return route.replace(/^\//, '').replace(/[\\/:*?"<>|]/g, '_');
+  const base = route.replace(/^\//, '').replace(/[\\/:*?"<>|]/g, '_');
+  if (base.length <= 100) return base;
+  const digest = crypto.createHash('sha1').update(route).digest('hex').slice(0, 12);
+  return `${base.slice(0, 72)}_${digest}`;
 }
 
 function sampleRoutes(routes, n) {
