@@ -88,3 +88,7 @@ When creating the Vercel project manually, use:
 - Build Command: *(leave empty)*
 - Output Directory: *(leave empty)*
 - Install Command: *(leave empty)*
+
+## Workflow Validation Log
+
+- 2026-03-05: verified PR preview workflow (`pull_request`) with GitHub Actions + Vercel preview deployment.
