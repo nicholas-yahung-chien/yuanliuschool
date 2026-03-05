@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set, Tuple
 from urllib.parse import ParseResult, urljoin, urlparse, urlunparse
+from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 import requests
@@ -198,12 +199,22 @@ class Mirror:
 
     def _write_vercel_config(self) -> None:
         rewrites = []
+        seen_rewrites: Set[Tuple[str, str]] = set()
         for route, local_rel in sorted(self.page_route_to_local.items()):
             if route == "/":
                 continue
             expected = f"{route.lstrip('/')}.html"
             if local_rel != expected:
-                rewrites.append({"source": route, "destination": "/" + local_rel})
+                candidates = [route]
+                decoded = unquote(route)
+                if decoded != route:
+                    candidates.append(decoded)
+                for source in candidates:
+                    key = (source, local_rel)
+                    if key in seen_rewrites:
+                        continue
+                    seen_rewrites.add(key)
+                    rewrites.append({"source": source, "destination": "/" + local_rel})
 
         config = {
             "cleanUrls": True,

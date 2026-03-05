@@ -15,8 +15,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+      - name: Materialize route aliases for static hosting
+        run: python tools/materialize_route_aliases.py --site-dir site
       - name: Pull preview environment
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: site
@@ -44,8 +49,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+      - name: Materialize route aliases for static hosting
+        run: python tools/materialize_route_aliases.py --site-dir site
       - name: Pull production environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: site

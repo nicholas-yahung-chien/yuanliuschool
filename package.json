@@ -1,0 +1,14 @@
+﻿{
+  "name": "yuanliuschool-static-audit",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "visual:compare": "node tools/visual_compare.mjs"
+  },
+  "devDependencies": {
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.52.0",
+    "pngjs": "^7.0.0"
+  }
+}

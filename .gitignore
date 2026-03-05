@@ -3,3 +3,6 @@
 .venv/
 .env
 site_backup_*/
+node_modules/
+reports/
+site/_meta/broken_links.csv

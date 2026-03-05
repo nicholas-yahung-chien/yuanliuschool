@@ -22,21 +22,43 @@ This repository contains a static mirror of `https://yuanliuschool.com` (main si
 - `site/assets/`: mirrored assets
 - `site/_meta/`: crawl reports (`summary.json`, `pages.csv`, `assets.csv`, `route_map.json`, `assets_failed.csv`)
 - `tools/mirror_site.py`: mirror crawler + rewriter
-- `tools/validate_site.py`: static integrity checks
+- `tools/check_broken_links.py`: internal page-link checker
+- `tools/validate_site.py`: HTML/asset reference checks
+- `tools/visual_compare.mjs`: sampled visual comparison (desktop/mobile)
+- `tools/acceptance_audit.py`: route-by-route acceptance audit report
+- `tools/generate_vercel_config.py`: regenerate `site/vercel.json` rewrites from route map
 
 ## Rebuild Mirror
 
 ```bash
 python -m pip install -r requirements.txt
 python tools/mirror_site.py --output site --delay 0.06 --timeout 25 --max-pages 500
+python tools/generate_vercel_config.py --site-dir site
+python tools/check_broken_links.py --site-dir site --pages-csv site/_meta/pages.csv --output site/_meta/broken_links.csv
 python tools/validate_site.py --site-dir site
 ```
 
-## GitHub Actions
+## Acceptance Audit (Step 6)
+
+```bash
+python tools/acceptance_audit.py --source-base https://yuanliuschool.com --target-base https://yuanliuschool.vercel.app --pages-csv site/_meta/pages.csv --report-dir reports/acceptance
+```
+
+Sample visual comparison (desktop + mobile):
+
+```bash
+# serve local static output first
+python -m http.server 4173 --directory site
+# run in another shell
+node tools/visual_compare.mjs --source-base https://yuanliuschool.com --target-base http://127.0.0.1:4173 --pages-csv site/_meta/pages.csv --sample 10 --output-dir reports/visual-local --max-diff-ratio 0.6 --max-size-delta-ratio 0.2
+```
+
+## GitHub Actions (Step 5)
 
 - CI workflow: `.github/workflows/ci.yml`
-  - Runs static link/asset validation on PR and `main` pushes.
-
+  - broken link check
+  - HTML/asset reference check
+  - sampled visual compare (desktop/mobile)
 - Vercel deploy workflow: `.github/workflows/deploy-vercel.yml`
   - PR: preview deployment
   - `main`: production deployment
@@ -66,9 +88,3 @@ When creating the Vercel project manually, use:
 - Build Command: *(leave empty)*
 - Output Directory: *(leave empty)*
 - Install Command: *(leave empty)*
-
-Then add these GitHub repository secrets so the included workflow can deploy automatically:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
