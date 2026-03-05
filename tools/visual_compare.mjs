@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -38,6 +38,24 @@ function sampleRoutes(routes, n) {
     picked.push(routes[idx]);
   }
   return [...new Set(picked)];
+}
+
+function loadRouteMap(routeMapPath) {
+  if (!routeMapPath) return {};
+  if (!fs.existsSync(routeMapPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(routeMapPath, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function targetRouteForCompare(route, routeMap) {
+  const mapped = routeMap[route];
+  if (typeof mapped === 'string' && mapped.startsWith('__pages/') && mapped.endsWith('.html')) {
+    return `/${mapped.replace(/\.html$/, '')}`;
+  }
+  return route;
 }
 
 async function capture(page, url, filePath) {
@@ -110,12 +128,14 @@ async function main() {
   const targetBase = arg('target-base', 'http://127.0.0.1:4173');
   const pagesCsv = arg('pages-csv', 'site/_meta/pages.csv');
   const outputDir = arg('output-dir', 'reports/visual');
+  const routeMapPath = arg('route-map', 'site/_meta/route_map.json');
   const sampleSize = Number(arg('sample', '10'));
   const maxDiff = Number(arg('max-diff-ratio', '0.2'));
   const maxSizeDelta = Number(arg('max-size-delta-ratio', '0.6'));
 
   const csv = fs.readFileSync(pagesCsv, 'utf-8');
   const routes = sampleRoutes(parseCsvRoutes(csv), sampleSize);
+  const routeMap = loadRouteMap(routeMapPath);
 
   const devices = [
     { name: 'desktop', viewport: { width: 1440, height: 2200 } },
@@ -137,6 +157,7 @@ async function main() {
       fs.mkdirSync(diffDir, { recursive: true });
 
       for (const route of routes) {
+        const targetRoute = targetRouteForCompare(route, routeMap);
         const name = slug(route);
         const srcPath = path.join(srcDir, `${name}.png`);
         const tgtPath = path.join(tgtDir, `${name}.png`);
@@ -147,21 +168,30 @@ async function main() {
 
         try {
           await capture(page, `${sourceBase}${route}`, srcPath);
-          await capture(page, `${targetBase}${route}`, tgtPath);
+          await capture(page, `${targetBase}${targetRoute}`, tgtPath);
           const ratio = diffRatio(srcPath, tgtPath, diffPath);
           const status = ratio.diffRatio > maxDiff || ratio.sizeDeltaRatio > maxSizeDelta ? 'fail' : 'pass';
           results.push({
             route,
+            targetRoute,
             device: device.name,
             diffRatio: ratio.diffRatio,
             sizeDeltaRatio: ratio.sizeDeltaRatio,
             status,
           });
           console.log(
-            `${device.name} ${route} diff=${ratio.diffRatio.toFixed(4)} sizeDelta=${ratio.sizeDeltaRatio.toFixed(4)}`
+            `${device.name} ${route} -> ${targetRoute} diff=${ratio.diffRatio.toFixed(4)} sizeDelta=${ratio.sizeDeltaRatio.toFixed(4)}`
           );
         } catch (err) {
-          results.push({ route, device: device.name, diffRatio: 1, status: 'error', error: String(err) });
+          results.push({
+            route,
+            targetRoute,
+            device: device.name,
+            diffRatio: 1,
+            sizeDeltaRatio: 1,
+            status: 'error',
+            error: String(err),
+          });
           console.error(`${device.name} ${route} error`, err.message || err);
         } finally {
           await context.close();
@@ -196,24 +226,30 @@ async function main() {
     `- Failed: ${failed.length}`,
     `- Threshold: ${maxDiff}`,
     '',
-    '| Route | Device | Diff Ratio | Size Delta | Status |',
-    '|---|---|---:|---:|---|',
+    '| Route | Target Route | Device | Diff Ratio | Size Delta | Status |',
+    '|---|---|---|---:|---:|---|',
   ];
 
-  for (const r of results) {
-    lines.push(
-      '| `' +
-        r.route +
-        '` | ' +
-        r.device +
-        ' | ' +
-        r.diffRatio.toFixed(4) +
-        ' | ' +
-        (r.sizeDeltaRatio ?? 0).toFixed(4) +
-        ' | ' +
-        r.status +
-        ' |'
-    );
+  if (results.length === 0) {
+    lines.push('| _none_ | _none_ | - | - | - | - |');
+  } else {
+    for (const r of results) {
+      lines.push(
+        '| `' +
+          r.route +
+          '` | `' +
+          (r.targetRoute ?? r.route) +
+          '` | ' +
+          r.device +
+          ' | ' +
+          r.diffRatio.toFixed(4) +
+          ' | ' +
+          (r.sizeDeltaRatio ?? 0).toFixed(4) +
+          ' | ' +
+          r.status +
+          ' |'
+      );
+    }
   }
 
   fs.writeFileSync(path.join(outputDir, 'visual-report.md'), `${lines.join('\n')}\n`);
